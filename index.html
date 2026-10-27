@@ -148,12 +148,12 @@ textarea:focus{outline:none;border-color:var(--main);background:#fff}
 <script>
 // ==================== 설정 영역 ====================
 const SUPABASE_URL = 'https://pdicittbtjvqyvfcxlem.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBkaWNpdHRidGp2cXl2ZmN4bGVtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTMwOTEzNDcsImV4cCI6MjEwODY2NzM0N30.A0SutNw0xd84OzZ8emR9wb0JjmaUSxS1JZBD75PlC6Q'; // <-- 여기에 키를 넣으세요!
+const SUPABASE_KEY = '여기에_복사한_키를_넣으세요'; // <-- 여기에 키를 넣으세요!
 const db = window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY) : null;
 
 // 관리자 인증 정보 설정
-const ADMIN_ID = "rlqja0704";    // 원하는 관리자 아이디로 변경하세요
-const ADMIN_PW = "951128";     // 원하는 관리자 비밀번호로 변경하세요
+const ADMIN_ID = "admin";    // 원하는 관리자 아이디로 변경하세요
+const ADMIN_PW = "1234";     // 원하는 관리자 비밀번호로 변경하세요
 let isAdmin = sessionStorage.getItem('study_admin') === 'true';
 // ====================================================
 
@@ -314,9 +314,19 @@ function pm(){
 
 function tog(i, targetDate){
   if(!checkAdmin()) return;
-  const r=rec(L[i]);
+  const l = L[i];
+  const r = rec(l);
   const dateToSet = targetDate || today();
-  r.d = r.d ? null : dateToSet;
+  
+  if(r.d) {
+    if(!confirm("기록이 삭제됩니다. 그래도 누르겠습니까?")) {
+      draw();
+      return;
+    }
+    r.d = null;
+  } else {
+    r.d = dateToSet;
+  }
   save(); draw();
 }
 
@@ -334,6 +344,7 @@ function addm(){
 }
 function delm(i){
   if(!checkAdmin()) return;
+  if(!confirm("기록이 삭제됩니다. 그래도 누르겠습니까?")) return;
   const l=C().l[today()];l&&l.splice(i,1);save();draw()
 }
 
@@ -352,6 +363,7 @@ function addPastMin(){
 }
 function delPastMin(dateKey, idx){
   if(!checkAdmin()) return;
+  if(!confirm("기록이 삭제됩니다. 그래도 누르겠습니까?")) return;
   const c = C();
   if(c.l[dateKey]){
     c.l[dateKey].splice(idx, 1);
@@ -406,16 +418,15 @@ function renderStats(){
     const dateStr = d.toLocaleDateString('sv');
     const dayLabel = days[d.getDay()];
     
-    const auMin = L.reduce((x,l)=>x+(dn(l)==dateStr?l.m:0),0);
+    // 주간 학습 시간 차트는 오직 직접 입력한 수동 공부시간(c.l)만 반영
     const manualArr = c.l[dateStr] || [];
-    const manualSum = manualArr.reduce((x,y)=>x+y,0);
-    const totalMin = auMin + manualSum;
+    const totalMin = manualArr.reduce((x,y)=>x+y,0);
     
     if(totalMin > maxMin) maxMin = totalMin;
     weeklyData.push({ dateStr, dayLabel, totalMin, isToday: dateStr === today() });
   }
 
-  let weeklyHtml = `<div class="stat-card"><h4>📈 주간 학습 시간 (최근 7일)</h4><div class="chart-weekly">`;
+  let weeklyHtml = `<div class="stat-card"><h4>📈 주간 학습 시간 (최근 7일, 직접 입력 기준)</h4><div class="chart-weekly">`;
   weeklyData.forEach(w => {
     const heightPct = maxMin > 0 ? Math.max(8, Math.round((w.totalMin / maxMin) * 100)) : 0;
     weeklyHtml += `
@@ -478,17 +489,14 @@ function renderCalendar(){
     const dateKey = `${year}-${mStr}-${dStr}`;
     const isToday = dateKey === today();
     
-    const auMin = L.reduce((x,l)=>x+(dn(l)==dateKey?l.m:0),0);
     const manualArr = c.l[dateKey] || [];
-    const manualSum = manualArr.reduce((x,y)=>x+y,0);
-    const totalMin = auMin + manualSum;
+    const totalMin = manualArr.reduce((x,y)=>x+y,0); // 수동 입력 공부시간만 표시
     const completedLectures = L.filter(l => dn(l) === dateKey);
     const dayMemo = (c.memos && c.memos[dateKey]) || "";
     
     html += `<div class="cal-cell ${isToday?'today':''}">`;
     html += `<div class="date-num"><span>${d}</span></div>`;
     
-    // 캘린더 날짜별 메모 입력 및 조회 영역 (관리자만 입력/수정 가능)
     if(isAdmin) {
       html += `<div style="margin-bottom:2px"><input type="text" id="cal_memo_${dateKey}" value="${dayMemo}" placeholder="메모 입력" style="width:100%;font-size:10px;padding:2px 4px;border:1px solid var(--line);border-radius:4px" onchange="saveCalendarMemo('${dateKey}')" title="엔터나 포커스 아웃 시 저장"></div>`;
     } else if(dayMemo) {
@@ -496,7 +504,7 @@ function renderCalendar(){
     }
 
     if(totalMin > 0){
-      html += `<div class="cal-time">${hmShort(totalMin)}</div>`;
+      html += `<div class="cal-time">총 공부 ${hmShort(totalMin)}</div>`;
     }
     completedLectures.forEach(l => {
       const fullSubName = D[l.s][0];
@@ -515,16 +523,14 @@ function renderCalendar(){
 
 function info(){
   const c=C(), t=today();
-  const au=L.reduce((x,l)=>x+(dn(l)==t?l.m:0),0);
-  const ls=c.l[t]||[], ex=ls.reduce((x,y)=>x+y,0);
-  const me=au+ex; // 오늘 총 공부한 시간 (강의 + 직접입력)
+  const au=L.reduce((x,l)=>x+(dn(l)==t?l.m:0),0); // 오늘 완료한 강의 시간 (참고용)
+  const ls=c.l[t]||[], ex=ls.reduce((x,y)=>x+y,0);     // 오늘 순수 공부시간 (수동 입력)
   
-  const T=pct(L); // 전체 완료율 계산 (강의 완료 시간 기준)
-  const rem=T.all-T.dd; 
+  const T=pct(L); 
+  const rem=T.all-T.dd;                                // 전체 남은 강의 시간
   const n=dday(c.d.필기);
   
-  // 목표 퍼센트지/남은 목표는 '강의 완료 시간'만을 기준으로 계산하도록 수정
-  const goal=n>0?Math.ceil((rem+au)/n):null; // 남은 공부량(강의 기준) 대비 목표
+  const goal=n>0?Math.ceil((rem+au)/n):null; 
 
   let pastSearchResults = [];
   if(pastSearchWord.trim()) {
@@ -544,8 +550,8 @@ function info(){
     </div>
     
     <div class="dd-box">
-      <b>⏱️ 오늘 공부량 (${hm(me)})</b>
-      <div style="font-size:12px;color:var(--dim);margin-bottom:6px">강의 자동 ${hm(au)} + 직접 ${hm(ex)}</div>
+      <b>⏱️ 오늘 총 공부시간 (${hm(ex)})</b>
+      <div style="font-size:12px;color:var(--dim);margin-bottom:6px">직접 입력한 공부시간 기준합산 (강의시간 제외)</div>
       <div style="display:flex;gap:6px;align-items:center;margin-bottom:6px">
         <input type=number id=mi min=1 placeholder="분" ${!isAdmin?'disabled':''} onkeydown="if(event.key=='Enter')addm()"> 분
         <button onclick="addm()" ${!isAdmin?'style="opacity:0.5"':''}>적용</button> 
@@ -579,10 +585,10 @@ function info(){
     </div>
 
     <div class="dd-box">
-      <b>🎯 하루 목표 설정</b>
+      <b>🎯 하루 목표 설정 (강의 진도 기준)</b>
       <div style="font-size:12px;color:var(--dim);margin-bottom:4px">남은 강의 ${hm(rem)} ÷ ${n>0?n+'일':'필기 날짜 필요'}</div>
       <div style="font-size:15px;font-weight:bold;color:var(--main);margin-bottom:4px">권장: ${goal==null?'-':hm(goal)}</div>
-      ${goal==null?'':`<div>오늘 남은 강의 목표: <b>${au>=goal?'달성 🎉':hm(goal-au)}</b></div>`}
+      ${goal==null?'':`<div>오늘 남은 목표: <b>${au>=goal?'달성 🎉':hm(goal-au)}</b></div>`}
       ${goal?bar(Math.min(100,Math.round(au/goal*100))):''}
     </div>
   </div>`
