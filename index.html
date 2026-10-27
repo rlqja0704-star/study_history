@@ -105,12 +105,13 @@ textarea:focus{outline:none;border-color:var(--main);background:#fff}
 .cal-dow:first-child{color:#ef4444}
 .cal-dow:last-child{color:#3b82f6}
 
-.cal-cell{border:1px solid var(--line);border-radius:8px;padding:8px;min-height:95px;background:#fafafa;font-size:12px;transition:all 0.1s}
+.cal-cell{border:1px solid var(--line);border-radius:8px;padding:8px;min-height:105px;background:#fafafa;font-size:12px;transition:all 0.1s;display:flex;flex-direction:column}
 .cal-cell:hover{background:#fff;border-color:#cbd5e1;box-shadow:0 2px 4px rgba(0,0,0,0.02)}
 .cal-cell.today{border-color:var(--main);background:var(--primary-bg);box-shadow:0 0 0 1px var(--main)}
-.cal-cell .date-num{font-weight:bold;margin-bottom:4px;color:#334155}
+.cal-cell .date-num{font-weight:bold;margin-bottom:4px;color:#334155;display:flex;justify-content:space-between}
 .cal-cell .cal-time{color:var(--main);font-weight:bold;font-size:11px;margin-top:2px}
 .cal-cell .cal-item{font-size:10px;color:#1e293b;background:#fff;border:1px solid #e2e8f0;border-radius:4px;padding:2px 4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:2px}
+.cal-cell .cal-memo{font-size:10px;color:#b45309;background:#fef3c7;border:1px solid #fde68a;border-radius:4px;padding:2px 4px;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
 #stats{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px}
 .stat-card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px 20px;box-shadow:0 1px 3px rgba(0,0,0,0.02)}
@@ -319,7 +320,7 @@ function tog(i, targetDate){
   save(); draw();
 }
 
-const C=()=>{const c=S._cfg||(S._cfg={});c.d=c.d||{};c.l=c.l||{};c.o=c.o||{};c.a=c.a||{};return c};
+const C=()=>{const c=S._cfg||(S._cfg={});c.d=c.d||{};c.l=c.l||{};c.o=c.o||{};c.a=c.a||{};c.memos=c.memos||{};return c};
 
 function addm(){
   if(!checkAdmin()) return;
@@ -356,6 +357,20 @@ function delPastMin(dateKey, idx){
     c.l[dateKey].splice(idx, 1);
     save(); draw();
   }
+}
+
+function saveCalendarMemo(dateKey){
+  if(!checkAdmin()) return;
+  const inputEl = document.getElementById('cal_memo_' + dateKey);
+  if(!inputEl) return;
+  const val = inputEl.value.trim();
+  const c = C();
+  if(val) {
+    c.memos[dateKey] = val;
+  } else {
+    delete c.memos[dateKey];
+  }
+  save(); draw();
 }
 
 function addPastLec(lecIndex){
@@ -468,9 +483,18 @@ function renderCalendar(){
     const manualSum = manualArr.reduce((x,y)=>x+y,0);
     const totalMin = auMin + manualSum;
     const completedLectures = L.filter(l => dn(l) === dateKey);
+    const dayMemo = (c.memos && c.memos[dateKey]) || "";
     
     html += `<div class="cal-cell ${isToday?'today':''}">`;
-    html += `<div class="date-num">${d}</div>`;
+    html += `<div class="date-num"><span>${d}</span></div>`;
+    
+    // 캘린더 날짜별 메모 입력 및 조회 영역 (관리자만 입력/수정 가능)
+    if(isAdmin) {
+      html += `<div style="margin-bottom:2px"><input type="text" id="cal_memo_${dateKey}" value="${dayMemo}" placeholder="메모 입력" style="width:100%;font-size:10px;padding:2px 4px;border:1px solid var(--line);border-radius:4px" onchange="saveCalendarMemo('${dateKey}')" title="엔터나 포커스 아웃 시 저장"></div>`;
+    } else if(dayMemo) {
+      html += `<div class="cal-memo" title="${dayMemo}">📝 ${dayMemo}</div>`;
+    }
+
     if(totalMin > 0){
       html += `<div class="cal-time">${hmShort(totalMin)}</div>`;
     }
@@ -493,9 +517,14 @@ function info(){
   const c=C(), t=today();
   const au=L.reduce((x,l)=>x+(dn(l)==t?l.m:0),0);
   const ls=c.l[t]||[], ex=ls.reduce((x,y)=>x+y,0);
-  const me=au+ex;
-  const T=pct(L), rem=T.all-T.dd, n=dday(c.d.필기);
-  const goal=n>0?Math.ceil((rem+au)/n):null;
+  const me=au+ex; // 오늘 총 공부한 시간 (강의 + 직접입력)
+  
+  const T=pct(L); // 전체 완료율 계산 (강의 완료 시간 기준)
+  const rem=T.all-T.dd; 
+  const n=dday(c.d.필기);
+  
+  // 목표 퍼센트지/남은 목표는 '강의 완료 시간'만을 기준으로 계산하도록 수정
+  const goal=n>0?Math.ceil((rem+au)/n):null; // 남은 공부량(강의 기준) 대비 목표
 
   let pastSearchResults = [];
   if(pastSearchWord.trim()) {
@@ -551,10 +580,10 @@ function info(){
 
     <div class="dd-box">
       <b>🎯 하루 목표 설정</b>
-      <div style="font-size:12px;color:var(--dim);margin-bottom:4px">남은 ${hm(rem+au)} ÷ ${n>0?n+'일':'필기 날짜 필요'}</div>
+      <div style="font-size:12px;color:var(--dim);margin-bottom:4px">남은 강의 ${hm(rem)} ÷ ${n>0?n+'일':'필기 날짜 필요'}</div>
       <div style="font-size:15px;font-weight:bold;color:var(--main);margin-bottom:4px">권장: ${goal==null?'-':hm(goal)}</div>
-      ${goal==null?'':`<div>오늘 남은 목표: <b>${me>=goal?'달성 🎉':hm(goal-me)}</b></div>`}
-      ${goal?bar(Math.min(100,Math.round(me/goal*100))):''}
+      ${goal==null?'':`<div>오늘 남은 강의 목표: <b>${au>=goal?'달성 🎉':hm(goal-au)}</b></div>`}
+      ${goal?bar(Math.min(100,Math.round(au/goal*100))):''}
     </div>
   </div>`
   + renderStats()
