@@ -148,12 +148,12 @@ textarea:focus{outline:none;border-color:var(--main);background:#fff}
 <script>
 // ==================== 설정 영역 ====================
 const SUPABASE_URL = 'https://pdicittbtjvqyvfcxlem.supabase.co';
-const SUPABASE_KEY = '여기에_복사한_키를_넣으세요'; // <-- 여기에 키를 넣으세요!
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBkaWNpdHRidGp2cXl2ZmN4bGVtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTMwOTEzNDcsImV4cCI6MjEwODY2NzM0N30.A0SutNw0xd84OzZ8emR9wb0JjmaUSxS1JZBD75PlC6Q'; // <-- 여기에 키를 넣으세요!
 const db = window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY) : null;
 
 // 관리자 인증 정보 설정
-const ADMIN_ID = "admin";    // 원하는 관리자 아이디로 변경하세요
-const ADMIN_PW = "1234";     // 원하는 관리자 비밀번호로 변경하세요
+const ADMIN_ID = "rlqja0704";    // 원하는 관리자 아이디로 변경하세요
+const ADMIN_PW = "951128";     // 원하는 관리자 비밀번호로 변경하세요
 let isAdmin = sessionStorage.getItem('study_admin') === 'true';
 // ====================================================
 
